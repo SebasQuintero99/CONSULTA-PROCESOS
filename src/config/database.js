@@ -25,6 +25,17 @@ class Database {
         }
     }
 
+    async testConnection() {
+        try {
+            await this.query('SELECT 1');
+            console.log('✅ Conexión a base de datos exitosa');
+            return true;
+        } catch (error) {
+            console.error('❌ Error al conectar con la base de datos:', error);
+            return false;
+        }
+    }
+
     // MÉTODOS PARA ABOGADOS
     async crearAbogado(nombre, email = null, telefono = null) {
         const sql = 'INSERT INTO abogados (nombre, email, telefono) VALUES (?, ?, ?)';
@@ -90,18 +101,6 @@ class Database {
                     WHERE p.abogado_id = ?
                     ORDER BY p.creado_en DESC`;
         return await this.query(sql, [abogadoId]);
-    }
-
-    // MÉTODO PARA VERIFICAR CONEXIÓN
-    async testConnection() {
-        try {
-            await this.query('SELECT 1');
-            console.log('✅ Conexión a base de datos exitosa');
-            return true;
-        } catch (error) {
-            console.error('❌ Error al conectar con la base de datos:', error);
-            return false;
-        }
     }
 }
 

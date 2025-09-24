@@ -1,29 +1,36 @@
 const { Telegraf, Markup } = require('telegraf');
-const { checkAuthorization } = require('./auth');
-const { getUserSession } = require('./handlers/sessions');
+const { checkAuthorization } = require('./middleware/auth');
+const { getUserSession } = require('./middleware/session');
+const db = require('./config/database');
 
-// Importar handlers modulares
-const setupAbogadosHandlers = require('./handlers/abogados');
-const setupPlataformasHandlers = require('./handlers/plataformas');
-const setupProcesosHandlers = require('./handlers/procesos');
-const setupAdminHandlers = require('./handlers/admin');
+// Importar handlers
+const { setupAbogadosCommands, handleAbogadoFlow } = require('./handlers/commands/abogados');
+const { setupPlataformasCommands, handlePlataformaFlow } = require('./handlers/commands/plataformas');
+const { setupProcesosCommands, handleProcesoFlow } = require('./handlers/commands/procesos');
+const { setupRevisionCommands } = require('./handlers/commands/revision');
+const { setupProcesosCallbacks } = require('./handlers/callbacks/procesos');
+const { setupPlataformasCallbacks } = require('./handlers/callbacks/plataformas');
 
 require('dotenv').config();
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-// Aplicar middleware de autorización a TODOS los comandos
+// Aplicar middleware de autorización
 bot.use(checkAuthorization);
 
-// Configurar handlers modulares
-const { handleAbogadoFlow } = setupAbogadosHandlers(bot);
-const { handlePlataformaFlow } = setupPlataformasHandlers(bot);
-const { handleProcesoFlow } = setupProcesosHandlers(bot);
-setupAdminHandlers(bot);
+// Configurar handlers de comandos
+setupAbogadosCommands(bot);
+setupPlataformasCommands(bot);
+setupProcesosCommands(bot);
+setupRevisionCommands(bot);
+
+// Configurar handlers de callbacks
+setupProcesosCallbacks(bot);
+setupPlataformasCallbacks(bot);
 
 // Comando start
 bot.start(async (ctx) => {
-    const { clearUserSession } = require('./handlers/sessions');
+    const { clearUserSession } = require('./middleware/session');
     clearUserSession(ctx.from.id);
 
     const welcomeMessage = `
@@ -39,6 +46,12 @@ Bienvenido al sistema de gestión de procesos.
 🔗 /listar_plataformas - Ver plataformas registradas
 📋 /listar_procesos - Ver procesos registrados
 
+*🤖 Sistema de Automatización:*
+🔍 /revisar_estados - Revisión manual de procesos
+📊 /estado_automatizacion - Ver estado del sistema
+🔍 /consultar_proceso [número] - Consultar proceso específico
+⚙️ /config_automatizacion - Configurar automatización
+
 ¿Qué deseas hacer?
     `;
 
@@ -46,7 +59,9 @@ Bienvenido al sistema de gestión de procesos.
         ['📝 Registrar Abogado', '🏢 Registrar Plataforma'],
         ['⚖️ Registrar Proceso'],
         ['👥 Listar Abogados', '🔗 Listar Plataformas'],
-        ['📋 Listar Procesos']
+        ['📋 Listar Procesos'],
+        ['🔍 Revisar Estados', '📊 Estado Automatización'],
+        ['⚙️ Config. Automatización']
     ]).resize();
 
     await ctx.reply(welcomeMessage, { parse_mode: 'Markdown', ...keyboard });
@@ -62,7 +77,6 @@ bot.on('text', async (ctx) => {
     const text = ctx.message.text;
 
     try {
-        // Intentar procesar con cada handler hasta encontrar uno que lo maneje
         let handled = false;
 
         // Procesar flujos de abogados
@@ -84,23 +98,44 @@ bot.on('text', async (ctx) => {
 
     } catch (error) {
         console.error('Error en flujo de conversación:', error);
-        const { clearUserSession } = require('./handlers/sessions');
+        const { clearUserSession } = require('./middleware/session');
         clearUserSession(userId);
         await ctx.reply('❌ Ocurrió un error. Por favor, intenta nuevamente.');
     }
 });
 
+// Configurar comandos del menú de Telegram
+async function setupBotCommands() {
+    const commands = [
+        { command: 'start', description: '🏠 Menú principal' },
+        { command: 'registrar_abogado', description: '👨‍💼 Registrar nuevo abogado' },
+        { command: 'registrar_plataforma', description: '🏢 Registrar nueva plataforma' },
+        { command: 'registrar_proceso', description: '⚖️ Registrar nuevo proceso' },
+        { command: 'listar_abogados', description: '👥 Ver abogados registrados' },
+        { command: 'listar_plataformas', description: '🔗 Ver plataformas registradas' },
+        { command: 'listar_procesos', description: '📋 Ver procesos registrados' },
+        { command: 'revisar', description: '🔍 Revisar estados de procesos' },
+        { command: 'estado', description: '📊 Estado del sistema automático' },
+        { command: 'consultar', description: '🔍 Consultar proceso específico' },
+        { command: 'config', description: '⚙️ Configurar automatización' }
+    ];
+
+    await bot.telegram.setMyCommands(commands);
+    console.log('📋 Comandos del menú configurados correctamente');
+}
+
 // Inicializar bot
 async function startBot() {
     try {
-        const db = require('./database');
-
         // Verificar conexión a base de datos
         const dbConnected = await db.testConnection();
         if (!dbConnected) {
             console.error('❌ No se pudo conectar a la base de datos. Verifica la configuración.');
             process.exit(1);
         }
+
+        // Configurar comandos del menú
+        await setupBotCommands();
 
         // Iniciar bot
         await bot.launch();

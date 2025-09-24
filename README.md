@@ -162,18 +162,49 @@ Bot: "✅ Proceso registrado exitosamente"
 - **"Port already in use"**: Detén otras instancias del bot
 - **"Invalid token"**: Verifica el token en el archivo `.env`
 
-## 📂 Estructura del Proyecto
+## 📂 Estructura del Proyecto (Nueva Arquitectura)
 
 ```
 REVISIONESTADOS/
-├── handlers/           # Manejadores de comandos del bot
-├── .env               # Variables de entorno (no incluido en git)
-├── .gitignore         # Archivos ignorados por git
-├── auth.js            # Autenticación y configuración
-├── database.js        # Configuración de base de datos
-├── database.txt       # Script SQL para crear tablas
-├── index.js           # Archivo principal del bot
-├── package.json       # Dependencias y scripts
-├── README.md          # Documentación del proyecto
-└── test-*.js          # Archivos de prueba
+├── src/                        # Código fuente principal
+│   ├── config/
+│   │   └── database.js         # Configuración de base de datos
+│   ├── models/
+│   │   ├── abogado.js          # Modelo de datos para abogados
+│   │   ├── plataforma.js       # Modelo de datos para plataformas
+│   │   └── proceso.js          # Modelo de datos para procesos
+│   ├── handlers/
+│   │   ├── commands/
+│   │   │   ├── abogados.js     # Comandos relacionados con abogados
+│   │   │   └── procesos.js     # Comandos relacionados con procesos
+│   │   └── callbacks/
+│   │       └── procesos.js     # Callbacks para botones de procesos
+│   ├── middleware/
+│   │   ├── auth.js             # Middleware de autenticación
+│   │   └── session.js          # Gestión de sesiones de usuario
+│   └── app.js                  # Aplicación principal
+├── handlers/                   # Archivos legacy
+├── .env                        # Variables de entorno (no incluido en git)
+├── .gitignore                  # Archivos ignorados por git
+├── auth.js                     # Archivo legacy
+├── database.js                 # Archivo legacy
+├── database.txt                # Script SQL para crear tablas
+├── index.js                    # Archivo legacy
+├── package.json                # Dependencias y scripts
+├── README.md                   # Documentación del proyecto
+└── test-*.js                   # Archivos de prueba
 ```
+
+### 🏗️ Arquitectura Modular
+
+**Beneficios de la nueva estructura:**
+- ✅ **Separación de responsabilidades**: Cada archivo tiene una función específica
+- ✅ **Código más mantenible**: Fácil de encontrar y modificar funcionalidades
+- ✅ **Escalabilidad**: Fácil agregar nuevas funcionalidades
+- ✅ **Reutilización**: Modelos y middleware reutilizables
+- ✅ **Testing**: Cada módulo se puede probar independientemente
+
+**Scripts disponibles:**
+- `npm start` - Ejecuta la nueva arquitectura (`src/app.js`)
+- `npm run dev` - Desarrollo con nodemon
+- `npm run start:old` - Ejecuta la versión legacy (`index.js`)
