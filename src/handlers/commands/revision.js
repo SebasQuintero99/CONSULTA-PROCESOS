@@ -9,15 +9,98 @@ function setupRevisionCommands(bot) {
     // Inicializar scheduler service
     schedulerService = new SchedulerService(bot);
 
+    // Inicializar notification service para usar en comandos manuales
+    const notificationService = new NotificationService(bot);
+
+    // Función para ejecutar revisión y enviar reporte
+    async function ejecutarRevisionYEnviarReporte(ctx, abogadoId = null, abogadoNombre = null) {
+        try {
+            const tipoRevision = abogadoId ? `del abogado *${abogadoNombre}*` : 'de *todos los procesos*';
+            await ctx.editMessageText(`🔄 *Iniciando revisión ${tipoRevision}...*\n\nEsto puede tomar algunos minutos.`, { parse_mode: 'Markdown' });
+
+            const resultados = await ramaJudicialApi.verificarProcesosPorAbogado(abogadoId);
+
+            if (resultados.length === 0) {
+                const mensaje = abogadoId ?
+                    `⚠️ *Sin procesos*\n\nEl abogado *${abogadoNombre}* no tiene procesos registrados.` :
+                    '⚠️ *Sin procesos*\n\nNo hay procesos registrados en el sistema.';
+                return await ctx.editMessageText(mensaje, { parse_mode: 'Markdown' });
+            }
+
+            // Crear reporte resumido para el usuario
+            const totalProcesos = resultados.length;
+            const procesosConCambios = resultados.filter(r => r.actualizado).length;
+            const procesosConError = resultados.filter(r => r.error).length;
+            const procesosSinCambios = totalProcesos - procesosConCambios - procesosConError;
+
+            let mensaje = `✅ *Revisión Completada* ✅\n\n`;
+            mensaje += `👤 *Abogado:* ${abogadoId ? abogadoNombre : 'Todos'}\n\n`;
+            mensaje += `📊 *Resumen:*\n`;
+            mensaje += `• Total procesos: ${totalProcesos}\n`;
+            mensaje += `• Con cambios: ${procesosConCambios} 🆕\n`;
+            mensaje += `• Sin cambios: ${procesosSinCambios} ⭐\n`;
+            mensaje += `• Con errores: ${procesosConError} ❌\n\n`;
+
+            if (procesosConCambios > 0) {
+                mensaje += `🆕 *Procesos actualizados:*\n`;
+                resultados.filter(r => r.actualizado).forEach((resultado, index) => {
+                    mensaje += `${index + 1}. ${resultado.proceso.numero_radicacion}\n`;
+                    if (!abogadoId) mensaje += `   👤 ${resultado.proceso.abogado_nombre}\n`;
+                });
+                mensaje += '\n';
+            }
+
+            if (procesosConError > 0) {
+                mensaje += `❌ *Procesos con errores:*\n`;
+                resultados.filter(r => r.error).forEach((resultado, index) => {
+                    mensaje += `${index + 1}. ${resultado.proceso.numero_radicacion}\n`;
+                    if (!abogadoId) mensaje += `   👤 ${resultado.proceso.abogado_nombre}\n`;
+                });
+            }
+
+            mensaje += `🕐 *Completada:* ${new Date().toLocaleString('es-CO')}`;
+
+            await ctx.editMessageText(mensaje, { parse_mode: 'Markdown' });
+
+            // También notificar al admin si no es el mismo usuario y es revisión completa
+            const adminUserId = process.env.ADMIN_USER_ID;
+            if (!abogadoId && adminUserId && ctx.from.id.toString() !== adminUserId) {
+                await notificationService.enviarReporteRevisionDiaria(resultados);
+            }
+
+        } catch (error) {
+            console.error('Error en revisión:', error);
+            await ctx.editMessageText('❌ Error al ejecutar la revisión. Intenta nuevamente.');
+        }
+    }
+
     // Handlers para botones del teclado principal
     bot.hears('🔍 Revisar Estados', async (ctx) => {
         try {
-            await ctx.reply('🔄 *Iniciando revisión manual de estados...*\n\nEsto puede tomar algunos minutos.', { parse_mode: 'Markdown' });
-            await schedulerService.ejecutarRevisionManual();
-            await ctx.reply('✅ *Revisión manual completada*\n\nVerifica las notificaciones para ver los resultados.', { parse_mode: 'Markdown' });
+            // Obtener lista de abogados
+            const AbogadoModel = require('../../models/abogado');
+            const abogados = await AbogadoModel.obtenerTodos();
+
+            if (abogados.length === 0) {
+                return await ctx.reply('❌ No hay abogados registrados en el sistema.');
+            }
+
+            // Crear botones para seleccionar abogado
+            const keyboard = Markup.inlineKeyboard([
+                [Markup.button.callback('📋 Revisar TODOS los procesos', 'revision_todos')],
+                ...abogados.map(abogado => [
+                    Markup.button.callback(`👤 ${abogado.nombre}`, `revision_abogado_${abogado.id}`)
+                ])
+            ]);
+
+            await ctx.reply('🔍 *Revisión de Estados de Procesos*\n\n¿De qué abogado quieres revisar los procesos?', {
+                parse_mode: 'Markdown',
+                ...keyboard
+            });
+
         } catch (error) {
-            console.error('Error en revisión manual:', error);
-            await ctx.reply('❌ Error al ejecutar la revisión manual. Intenta nuevamente.');
+            console.error('Error mostrando opciones de revisión:', error);
+            await ctx.reply('❌ Error al cargar las opciones de revisión.');
         }
     });
 
@@ -86,14 +169,30 @@ function setupRevisionCommands(bot) {
     // Comandos para revisar estados manualmente
     bot.command(['revisar_estados', 'revisar'], async (ctx) => {
         try {
-            await ctx.reply('🔄 *Iniciando revisión manual de estados...*\n\nEsto puede tomar algunos minutos.', { parse_mode: 'Markdown' });
+            // Obtener lista de abogados
+            const AbogadoModel = require('../../models/abogado');
+            const abogados = await AbogadoModel.obtenerTodos();
 
-            await schedulerService.ejecutarRevisionManual();
+            if (abogados.length === 0) {
+                return await ctx.reply('❌ No hay abogados registrados en el sistema.');
+            }
 
-            await ctx.reply('✅ *Revisión manual completada*\n\nVerifica las notificaciones para ver los resultados.', { parse_mode: 'Markdown' });
+            // Crear botones para seleccionar abogado
+            const keyboard = Markup.inlineKeyboard([
+                [Markup.button.callback('📋 Revisar TODOS los procesos', 'revision_todos')],
+                ...abogados.map(abogado => [
+                    Markup.button.callback(`👤 ${abogado.nombre}`, `revision_abogado_${abogado.id}`)
+                ])
+            ]);
+
+            await ctx.reply('🔍 *Revisión de Estados de Procesos*\n\n¿De qué abogado quieres revisar los procesos?', {
+                parse_mode: 'Markdown',
+                ...keyboard
+            });
+
         } catch (error) {
-            console.error('Error en revisión manual:', error);
-            await ctx.reply('❌ Error al ejecutar la revisión manual. Intenta nuevamente.');
+            console.error('Error mostrando opciones de revisión:', error);
+            await ctx.reply('❌ Error al cargar las opciones de revisión.');
         }
     });
 
@@ -257,6 +356,29 @@ function setupRevisionCommands(bot) {
             await ctx.editMessageText(mensaje, { parse_mode: 'Markdown' });
         } catch (error) {
             await ctx.editMessageText('❌ Error obteniendo estado.');
+        }
+    });
+
+    // Callbacks para revisión por abogado
+    bot.action('revision_todos', async (ctx) => {
+        await ejecutarRevisionYEnviarReporte(ctx);
+    });
+
+    bot.action(/^revision_abogado_(\d+)$/, async (ctx) => {
+        const abogadoId = parseInt(ctx.match[1]);
+        try {
+            // Obtener nombre del abogado
+            const AbogadoModel = require('../../models/abogado');
+            const abogado = await AbogadoModel.obtenerPorId(abogadoId);
+
+            if (!abogado) {
+                return await ctx.editMessageText('❌ Abogado no encontrado.');
+            }
+
+            await ejecutarRevisionYEnviarReporte(ctx, abogadoId, abogado.nombre);
+        } catch (error) {
+            console.error('Error en revisión por abogado:', error);
+            await ctx.editMessageText('❌ Error al ejecutar la revisión del abogado.');
         }
     });
 

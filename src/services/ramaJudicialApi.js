@@ -282,22 +282,43 @@ class RamaJudicialApiService {
     }
 
     async verificarTodosProcesos() {
-        try {
-            console.log('🔄 Iniciando verificación de todos los procesos...');
+        return await this.verificarProcesosPorAbogado();
+    }
 
-            // Obtener todos los procesos activos
-            const procesos = await db.query(`
+    async verificarProcesosPorAbogado(abogadoId = null) {
+        try {
+            const filtroTexto = abogadoId ? `del abogado ID ${abogadoId}` : 'de todos los procesos';
+            console.log(`🔄 Iniciando verificación ${filtroTexto}...`);
+
+            // Query base para obtener procesos
+            let query = `
                 SELECT p.*, a.nombre as abogado_nombre, pl.nombre as plataforma_nombre
                 FROM procesos p
                 JOIN abogados a ON p.abogado_id = a.id
                 JOIN plataformas pl ON p.plataforma_id = pl.id
-                ORDER BY p.numero_radicacion
-            `);
+            `;
+
+            let params = [];
+
+            // Agregar filtro por abogado si se especifica
+            if (abogadoId) {
+                query += ` WHERE p.abogado_id = ?`;
+                params.push(abogadoId);
+            }
+
+            query += ` ORDER BY p.numero_radicacion`;
+
+            const procesos = await db.query(query, params);
+
+            if (procesos.length === 0) {
+                console.log('⚠️ No se encontraron procesos para verificar');
+                return [];
+            }
 
             const resultados = [];
 
             for (const proceso of procesos) {
-                console.log(`\n📋 Verificando: ${proceso.numero_radicacion}`);
+                console.log(`\n📋 Verificando: ${proceso.numero_radicacion} (${proceso.abogado_nombre})`);
 
                 try {
                     const resultado = await this.verificarCambiosEnProceso(proceso.numero_radicacion, proceso.id);
