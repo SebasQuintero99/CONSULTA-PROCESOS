@@ -191,8 +191,41 @@ async function handleProcesoFlow(ctx, text, userId, session) {
                             const fecha = new Date(procesoApi.fechaProceso).toLocaleDateString('es-CO');
                             mensaje += `\n📅 **Fecha radicación:** ${fecha}`;
                         }
+
+                        // Mostrar sujetos procesales detalladamente
                         if (procesoApi.sujetosProcesales && procesoApi.sujetosProcesales.length > 0) {
-                            mensaje += `\n👥 **Sujetos procesales:** ${procesoApi.sujetosProcesales.length} registrado(s)`;
+                            mensaje += `\n\n👥 **Sujetos procesales:** (${procesoApi.sujetosProcesales.length})`;
+                            procesoApi.sujetosProcesales.slice(0, 5).forEach((sujeto, index) => {
+                                mensaje += `\n   ${index + 1}. ${sujeto.nombre || 'Sin nombre'}`;
+                                if (sujeto.tipoSujeto) mensaje += ` - ${sujeto.tipoSujeto}`;
+                            });
+                            if (procesoApi.sujetosProcesales.length > 5) {
+                                mensaje += `\n   ... y ${procesoApi.sujetosProcesales.length - 5} más`;
+                            }
+                        }
+
+                        // Obtener y mostrar última actuación
+                        try {
+                            const actuaciones = await ramaJudicialApi.obtenerActuaciones(procesoApi.idProceso);
+                            if (actuaciones.actuaciones && actuaciones.actuaciones.length > 0) {
+                                const ultimaActuacion = actuaciones.actuaciones[0];
+                                mensaje += `\n\n⚖️ **Última actuación:**`;
+                                const fechaActuacion = new Date(ultimaActuacion.fechaActuacion).toLocaleDateString('es-CO');
+                                mensaje += `\n📅 **Fecha:** ${fechaActuacion}`;
+                                if (ultimaActuacion.actuacion) {
+                                    // Truncar si es muy larga
+                                    const descripcionActuacion = ultimaActuacion.actuacion.length > 100
+                                        ? ultimaActuacion.actuacion.substring(0, 100) + '...'
+                                        : ultimaActuacion.actuacion;
+                                    mensaje += `\n📋 **Actuación:** ${descripcionActuacion}`;
+                                }
+                                if (ultimaActuacion.anotacion) {
+                                    mensaje += `\n📌 **Anotación:** ${ultimaActuacion.anotacion}`;
+                                }
+                            }
+                        } catch (actuacionError) {
+                            console.log('No se pudieron obtener actuaciones:', actuacionError.message);
+                            mensaje += `\n\n⚖️ **Última actuación:** No disponible`;
                         }
                     } else {
                         mensaje += `\n\n⚠️ *Nota:* No se pudo obtener información adicional del proceso desde Rama Judicial. Los datos se completarán en la próxima revisión automática.`;

@@ -85,25 +85,19 @@ class Database {
     }
 
     async obtenerProcesos() {
-        const sql = `SELECT p.*, a.nombre as abogado_nombre, pl.nombre as plataforma_nombre,
-                            act.fecha_actuacion as ultima_actuacion_fecha,
-                            act.actuacion as ultima_actuacion_descripcion
+        const sql = `SELECT p.*, a.nombre as abogado_nombre, pl.nombre as plataforma_nombre
                     FROM procesos p
                     JOIN abogados a ON p.abogado_id = a.id
                     JOIN plataformas pl ON p.plataforma_id = pl.id
-                    LEFT JOIN actuaciones act ON p.id = act.proceso_id
                     ORDER BY p.creado_en DESC`;
         return await this.query(sql);
     }
 
     async obtenerProcesosPorAbogado(abogadoId) {
-        const sql = `SELECT p.*, a.nombre as abogado_nombre, pl.nombre as plataforma_nombre,
-                            act.fecha_actuacion as ultima_actuacion_fecha,
-                            act.actuacion as ultima_actuacion_descripcion
+        const sql = `SELECT p.*, a.nombre as abogado_nombre, pl.nombre as plataforma_nombre
                     FROM procesos p
                     JOIN abogados a ON p.abogado_id = a.id
                     JOIN plataformas pl ON p.plataforma_id = pl.id
-                    LEFT JOIN actuaciones act ON p.id = act.proceso_id
                     WHERE p.abogado_id = ?
                     ORDER BY p.creado_en DESC`;
         return await this.query(sql, [abogadoId]);
