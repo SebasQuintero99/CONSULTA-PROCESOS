@@ -8,6 +8,7 @@ const { setupAbogadosCommands, handleAbogadoFlow } = require('./handlers/command
 const { setupPlataformasCommands, handlePlataformaFlow } = require('./handlers/commands/plataformas');
 const { setupProcesosCommands, handleProcesoFlow } = require('./handlers/commands/procesos');
 const { setupRevisionCommands } = require('./handlers/commands/revision');
+const { setupAdminCommands } = require('./handlers/commands/admin');
 const { setupProcesosCallbacks } = require('./handlers/callbacks/procesos');
 const { setupPlataformasCallbacks } = require('./handlers/callbacks/plataformas');
 
@@ -23,6 +24,7 @@ setupAbogadosCommands(bot);
 setupPlataformasCommands(bot);
 setupProcesosCommands(bot);
 setupRevisionCommands(bot);
+setupAdminCommands(bot);
 
 // Configurar handlers de callbacks
 setupProcesosCallbacks(bot);
@@ -51,6 +53,11 @@ Bienvenido al sistema de gestión de procesos.
 📊 /estado_automatizacion - Ver estado del sistema
 🔍 /consultar_proceso [número] - Consultar proceso específico
 ⚙️ /config_automatizacion - Configurar automatización
+
+*👑 Comandos de Administración:*
+👤 /autorizar [ID] - Autorizar usuario
+🚫 /desautorizar [ID] - Desautorizar usuario
+👥 /usuarios - Ver usuarios autorizados
 
 ¿Qué deseas hacer?
     `;
@@ -117,7 +124,10 @@ async function setupBotCommands() {
         { command: 'revisar', description: '🔍 Revisar estados de procesos' },
         { command: 'estado', description: '📊 Estado del sistema automático' },
         { command: 'consultar', description: '🔍 Consultar proceso específico' },
-        { command: 'config', description: '⚙️ Configurar automatización' }
+        { command: 'config', description: '⚙️ Configurar automatización' },
+        { command: 'autorizar', description: '👤 Autorizar usuario (solo admin)' },
+        { command: 'desautorizar', description: '🚫 Desautorizar usuario (solo admin)' },
+        { command: 'usuarios', description: '👥 Ver usuarios autorizados (solo admin)' }
     ];
 
     await bot.telegram.setMyCommands(commands);
