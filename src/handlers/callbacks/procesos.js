@@ -58,6 +58,22 @@ function setupProcesosCallbacks(bot) {
                 mensaje += `   🏢 Plataforma: ${proceso.plataforma_nombre}\n`;
                 if (proceso.juzgado) mensaje += `   🏛️ Juzgado: ${proceso.juzgado}\n`;
                 if (proceso.estado) mensaje += `   📊 Estado: ${proceso.estado}\n`;
+
+                // Agregar información de última actuación
+                if (proceso.ultima_actuacion_fecha) {
+                    const fechaActuacion = new Date(proceso.ultima_actuacion_fecha).toLocaleDateString('es-CO');
+                    mensaje += `   ⚖️ Última actuación: ${fechaActuacion}\n`;
+                    if (proceso.ultima_actuacion_descripcion) {
+                        // Truncar descripción si es muy larga
+                        const descripcion = proceso.ultima_actuacion_descripcion.length > 60
+                            ? proceso.ultima_actuacion_descripcion.substring(0, 60) + '...'
+                            : proceso.ultima_actuacion_descripcion;
+                        mensaje += `   📋 ${descripcion}\n`;
+                    }
+                } else {
+                    mensaje += `   ⚖️ Sin actuaciones registradas\n`;
+                }
+
                 mensaje += `   📅 Registrado: ${new Date(proceso.creado_en).toLocaleDateString()}\n\n`;
             });
 
@@ -88,6 +104,22 @@ function setupProcesosCallbacks(bot) {
                 mensaje += `   🏢 Plataforma: ${proceso.plataforma_nombre}\n`;
                 if (proceso.juzgado) mensaje += `   🏛️ Juzgado: ${proceso.juzgado}\n`;
                 if (proceso.estado) mensaje += `   📊 Estado: ${proceso.estado}\n`;
+
+                // Agregar información de última actuación
+                if (proceso.ultima_actuacion_fecha) {
+                    const fechaActuacion = new Date(proceso.ultima_actuacion_fecha).toLocaleDateString('es-CO');
+                    mensaje += `   ⚖️ Última actuación: ${fechaActuacion}\n`;
+                    if (proceso.ultima_actuacion_descripcion) {
+                        // Truncar descripción si es muy larga
+                        const descripcion = proceso.ultima_actuacion_descripcion.length > 60
+                            ? proceso.ultima_actuacion_descripcion.substring(0, 60) + '...'
+                            : proceso.ultima_actuacion_descripcion;
+                        mensaje += `   📋 ${descripcion}\n`;
+                    }
+                } else {
+                    mensaje += `   ⚖️ Sin actuaciones registradas\n`;
+                }
+
                 mensaje += `   📅 Registrado: ${new Date(proceso.creado_en).toLocaleDateString()}\n\n`;
             });
 
