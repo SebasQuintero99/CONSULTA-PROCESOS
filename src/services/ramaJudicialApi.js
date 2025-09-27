@@ -315,43 +315,62 @@ class RamaJudicialApiService {
                 return [];
             }
 
-            const resultados = [];
+            console.log(`📊 Procesando ${procesos.length} procesos en paralelo (máximo 10 simultáneos)...`);
 
-            for (const proceso of procesos) {
-                console.log(`\n📋 Verificando: ${proceso.numero_radicacion} (${proceso.abogado_nombre})`);
-
+            // Función para procesar un solo proceso
+            const procesarProceso = async (proceso, index) => {
                 try {
+                    console.log(`📋 [${index + 1}/${procesos.length}] Verificando: ${proceso.numero_radicacion} (${proceso.abogado_nombre})`);
+
                     const resultado = await this.verificarCambiosEnProceso(proceso.numero_radicacion, proceso.id);
 
                     if (resultado.hayChangios) {
                         await this.actualizarProceso(proceso.numero_radicacion, proceso.id);
-                        resultados.push({
+                        return {
                             proceso: proceso,
                             cambios: resultado,
                             actualizado: true
-                        });
+                        };
                     } else {
-                        resultados.push({
+                        return {
                             proceso: proceso,
                             cambios: resultado,
                             actualizado: false
-                        });
+                        };
                     }
-
-                    // Pausa entre consultas para no saturar la API
-                    await new Promise(resolve => setTimeout(resolve, 2000));
 
                 } catch (error) {
                     console.error(`❌ Error procesando ${proceso.numero_radicacion}:`, error.message);
-                    resultados.push({
+                    return {
                         proceso: proceso,
                         error: error.message,
                         actualizado: false
-                    });
+                    };
+                }
+            };
+
+            // Procesar en lotes de 10 procesos simultáneos
+            const BATCH_SIZE = 10;
+            const resultados = [];
+
+            for (let i = 0; i < procesos.length; i += BATCH_SIZE) {
+                const lote = procesos.slice(i, i + BATCH_SIZE);
+                console.log(`🚀 Procesando lote ${Math.floor(i / BATCH_SIZE) + 1}: ${lote.length} procesos simultáneos`);
+
+                // Procesar todos los procesos del lote en paralelo
+                const promesasLote = lote.map((proceso, index) => procesarProceso(proceso, i + index));
+                const resultadosLote = await Promise.all(promesasLote);
+
+                resultados.push(...resultadosLote);
+
+                // Pausa corta entre lotes para no saturar completamente la API
+                if (i + BATCH_SIZE < procesos.length) {
+                    console.log(`⏸️ Pausa de 3 segundos antes del siguiente lote...`);
+                    await new Promise(resolve => setTimeout(resolve, 3000));
                 }
             }
 
-            console.log(`\n✅ Verificación completada. ${resultados.length} procesos revisados`);
+            console.log(`\n✅ Verificación completada. ${resultados.length} procesos revisados en paralelo`);
             return resultados;
 
         } catch (error) {

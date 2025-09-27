@@ -185,6 +185,10 @@ async function handleProcesoFlow(ctx, text, userId, session) {
                                   `🏢 **Plataforma:** ${plataforma.nombre}`;
 
                     if (procesoApi) {
+                        // Debug: ver qué tipo de dato llega para sujetos procesales
+                        console.log('DEBUG - Tipo de sujetosProcesales:', typeof procesoApi.sujetosProcesales);
+                        console.log('DEBUG - Contenido sujetosProcesales:', procesoApi.sujetosProcesales);
+
                         mensaje += `\n\n📋 **Datos adicionales obtenidos:**`;
                         if (procesoApi.despacho) mensaje += `\n🏛️ **Juzgado:** ${procesoApi.despacho}`;
                         if (procesoApi.fechaProceso) {
@@ -193,14 +197,32 @@ async function handleProcesoFlow(ctx, text, userId, session) {
                         }
 
                         // Mostrar sujetos procesales detalladamente
-                        if (procesoApi.sujetosProcesales && procesoApi.sujetosProcesales.length > 0) {
-                            mensaje += `\n\n👥 **Sujetos procesales:** (${procesoApi.sujetosProcesales.length})`;
-                            procesoApi.sujetosProcesales.slice(0, 5).forEach((sujeto, index) => {
-                                mensaje += `\n   ${index + 1}. ${sujeto.nombre || 'Sin nombre'}`;
-                                if (sujeto.tipoSujeto) mensaje += ` - ${sujeto.tipoSujeto}`;
-                            });
-                            if (procesoApi.sujetosProcesales.length > 5) {
-                                mensaje += `\n   ... y ${procesoApi.sujetosProcesales.length - 5} más`;
+                        if (procesoApi.sujetosProcesales) {
+                            // Verificar si es un array válido
+                            let sujetosProcesales = procesoApi.sujetosProcesales;
+
+                            // Si es un string, intentar parsearlo
+                            if (typeof sujetosProcesales === 'string') {
+                                try {
+                                    sujetosProcesales = JSON.parse(sujetosProcesales);
+                                } catch (e) {
+                                    console.log('Error parseando sujetos procesales:', e.message);
+                                    sujetosProcesales = null;
+                                }
+                            }
+
+                            // Verificar que sea un array con elementos
+                            if (Array.isArray(sujetosProcesales) && sujetosProcesales.length > 0) {
+                                mensaje += `\n\n👥 **Sujetos procesales:** (${sujetosProcesales.length})`;
+                                sujetosProcesales.slice(0, 5).forEach((sujeto, index) => {
+                                    mensaje += `\n   ${index + 1}. ${sujeto.nombre || 'Sin nombre'}`;
+                                    if (sujeto.tipoSujeto) mensaje += ` - ${sujeto.tipoSujeto}`;
+                                });
+                                if (sujetosProcesales.length > 5) {
+                                    mensaje += `\n   ... y ${sujetosProcesales.length - 5} más`;
+                                }
+                            } else {
+                                mensaje += `\n\n👥 **Sujetos procesales:** No disponibles`;
                             }
                         }
 
